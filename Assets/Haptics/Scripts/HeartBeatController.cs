@@ -1,6 +1,8 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
+using UnityEngine.UI;
 using UnityEngine.XR;
 
 public class HeartAttackController : MonoBehaviour
@@ -14,10 +16,34 @@ public class HeartAttackController : MonoBehaviour
     private float timer = 0f;
     private bool isAttacking = false;
 
+    // Global Volume and post-processing effects references
+    private Volume globalVolume;
+    private DepthOfField depthOfField;
+    private Vignette vignette;
+    private ColorAdjustments colorAdjustments;
+
+    // Sweat effect references
+    public Image sweatOverlay; // Assign a UI Image with sweat texture in the inspector
+
+
     private void Start()
     {
         currentRate = normalRate;
         StartCoroutine(HeartbeatCoroutine());
+
+        // Find and assign the Global Volume
+        globalVolume = FindObjectOfType<Volume>();
+
+        if (globalVolume != null)
+        {
+            globalVolume.profile.TryGet(out depthOfField);
+            globalVolume.profile.TryGet(out vignette);
+            globalVolume.profile.TryGet(out colorAdjustments);
+        }
+        else
+        {
+            Debug.LogError("Global Volume not found. Please ensure there is a Global Volume in the scene.");
+        }
     }
 
     private void Update()
@@ -36,6 +62,35 @@ public class HeartAttackController : MonoBehaviour
             if (currentRate <= attackRate)
             {
                 currentRate = attackRate; // Cap the rate to the attack rate
+            }
+
+            // Increase blur (Depth of Field effect)
+            if (depthOfField != null)
+            {
+                depthOfField.focusDistance.value = Mathf.Lerp(10f, 0.1f, timer / transitionTime);
+                depthOfField.aperture.value = Mathf.Lerp(5.6f, 0.5f, timer / transitionTime);
+            }
+
+            // Increase sweat intensity
+            if (sweatOverlay != null)
+            {
+                Color color = sweatOverlay.color;
+                color.a = Mathf.Lerp(0f, 0.5f, timer / transitionTime);
+                sweatOverlay.color = color;
+            }
+
+            // Increase vignette effect to full blackness
+            if (vignette != null)
+            {
+                vignette.intensity.value = Mathf.Lerp(0.2f, 1.0f, timer / transitionTime); // Max intensity
+                vignette.smoothness.value = Mathf.Lerp(0.2f, 1.0f, timer / transitionTime); // Smooth transition to black
+            }
+
+            // Decrease saturation and brightness to blackness
+            if (colorAdjustments != null)
+            {
+                colorAdjustments.saturation.value = Mathf.Lerp(0f, -100f, timer / transitionTime);
+                colorAdjustments.postExposure.value = Mathf.Lerp(0f, -10f, timer / transitionTime); // Dramatic darkening
             }
         }
     }
